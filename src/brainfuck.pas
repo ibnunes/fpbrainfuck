@@ -5,10 +5,11 @@ uses fpbrainfuck;
 
 const
   CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
+  VERSION = '1.1.0';
 
 begin
   writeln('Regular Brainfuck-like Languages Interpreter');
-  writeln('By: Igor Nunes. Ver: ', fpbrainfuck.version);
+  writeln('By: Igor Nunes. Version: ', VERSION,'. Unit Version: ', fpbrainfuck.version);
   writeln;
 
   SetBFCommands('.--', '--.', '..-', '-..', '-.-', '.-.', '---', '...');

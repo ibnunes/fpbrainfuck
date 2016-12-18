@@ -4,7 +4,7 @@ unit fpbrainfuck;
 interface
 
 const
-  version : string = '2.0.0';
+  version : string = '2.0.1';
 
 type
   TBFCommand = string;
@@ -27,22 +27,7 @@ function  SetBFCommands(nextcell, previouscell,
 implementation
 uses crt, sysutils;
 
-// default Brainfuck
-const
-  BF_NEXTCELL     = '>';
-  BF_PREVIOUSCELL = '<';
-  BF_INCCELL      = '+';
-  BF_DECCELL      = '-';
-  BF_OUTPUT       = '.';
-  BF_INPUT        = ',';
-  BF_BEGINCYCLE   = '[';
-  BF_ENDCYCLE     = ']';
-  BF_COMMANDS = [BF_NEXTCELL  , BF_PREVIOUSCELL,  // cell selector
-                 BF_INCCELL   , BF_DECCELL     ,  // cell data
-                 BF_OUTPUT    , BF_INPUT       ,  // IO
-                 BF_BEGINCYCLE, BF_ENDCYCLE    ]; // cycles
-
-// acting like constants
+(* TOKENS *)
 const
   MINTOK = 0;
   MAXTOK = 7;
@@ -51,18 +36,23 @@ type
   TToken = TBFCommand;
   TArrToken = array[MINTOK..MAXTOK] of TToken;
 
+// default Brainfuck
+const
+  BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');
+  TOK_NEXTCELL     = 0;
+  TOK_PREVIOUSCELL = 1;
+  TOK_INCCELL      = 2;
+  TOK_DECCELL      = 3;
+  TOK_OUTPUT       = 4;
+  TOK_INPUT        = 5;
+  TOK_BEGINCYCLE   = 6;
+  TOK_ENDCYCLE     = 7;
+
+// acting like constant
 var
-  TOK_NEXTCELL     : TToken;
-  TOK_PREVIOUSCELL : TToken;
-  TOK_INCCELL      : TToken;
-  TOK_DECCELL      : TToken;
-  TOK_OUTPUT       : TToken;
-  TOK_INPUT        : TToken;
-  TOK_BEGINCYCLE   : TToken;
-  TOK_ENDCYCLE     : TToken;
-  TOK_COMMANDS     : TArrToken;
+  TOK_COMMANDS : TArrToken;
 
-
+(* CELLS *)
 type
   TBFCell    = byte;
   TBFArrCell = array of TBFCell;
@@ -74,13 +64,14 @@ type
 
 (* STATE MACHINE *)
 var
-  datacells : TBFArrCell;  // cells
-  cellidx : longword;      // pointer
-  bfIO : TBFIO;            // I/O methods
+  datacells : TBFArrCell;      // cells
+  cellidx   : longword;        // pointer
+  bfIO      : TBFIO;           // I/O methods
   aretokensregular : boolean;  // Are Tokens Regular? (a.k.a. all lengths equal)
+  toklen           : longword; // Length of tokens
 
 
-
+(* IMPLEMENTATION *)
 function IsBFCommand(c : TBFCommand) : boolean;
 var
   t : TToken;
@@ -162,17 +153,17 @@ end;
 procedure ProcessBrainfuck(ch : TBFCommand);
 (* Main procedure of all! This is the brain of the interpreter. *)
 begin
-       if ch = TOK_INPUT        then InputCell(cellidx)
-  else if ch = TOK_OUTPUT       then OutputCell(cellidx)
-  else if ch = TOK_INCCELL      then IncCell(cellidx)
-  else if ch = TOK_DECCELL      then DecCell(cellidx)
-  else if ch = TOK_NEXTCELL     then
+       if ch = TOK_COMMANDS[TOK_INPUT]        then InputCell(cellidx)
+  else if ch = TOK_COMMANDS[TOK_OUTPUT]       then OutputCell(cellidx)
+  else if ch = TOK_COMMANDS[TOK_INCCELL]      then IncCell(cellidx)
+  else if ch = TOK_COMMANDS[TOK_DECCELL]      then DecCell(cellidx)
+  else if ch = TOK_COMMANDS[TOK_NEXTCELL]     then
     begin
       Inc(cellidx);
       if CountCells-1 < cellidx then
         CreateCell;
     end
-  else if ch = TOK_PREVIOUSCELL then
+  else if ch = TOK_COMMANDS[TOK_PREVIOUSCELL] then
     begin
       if cellidx > 0 then
         Dec(cellidx);
@@ -197,14 +188,14 @@ begin
 
       if IsBFCommand(cmd) then begin
         // So, this is a cycle, heim? Lets do it!
-        if cmd = TOK_BEGINCYCLE then begin
+        if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
           acycle := GenerateCycle;
           cycle_count := 1;
           Inc(i);
-          while (cmd <> TOK_ENDCYCLE) and (cycle_count > 0) do begin
-            if cmd = TOK_ENDCYCLE then
+          while (cmd <> TOK_COMMANDS[TOK_ENDCYCLE]) and (cycle_count > 0) do begin
+            if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then
               Dec(cycle_count)
-            else if cmd = TOK_BEGINCYCLE then
+            else if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then
               Inc(cycle_count);
             if cycle_count <> 0 then
               AddToCycle(cmd, acycle);
@@ -254,10 +245,10 @@ begin
   thecode := GenerateCycle;
   while not eof(f) do begin
     t := '';
-    for i in [1..Length(TOK_COMMANDS[MINTOK])] do begin
+    for i in [1..toklen] do begin
       read(f, ch);
       t := t + ch;
-      if eof(f) and (i < Length(TOK_COMMANDS[MINTOK])) then begin
+      if eof(f) and (i < toklen) then begin
         LoadBrainfuck := ch = #10;
         goto _TOTALBREAK;
       end;
@@ -265,7 +256,7 @@ begin
     if IsBFCommand(t) then
       AddToCycle(t, thecode)
     else
-      Seek(f, FilePos(f)-Length(TOK_COMMANDS[MINTOK])+1);
+      Seek(f, FilePos(f)-toklen+1);
   end;
   _TOTALBREAK:
   CloseFile(f);
@@ -352,39 +343,37 @@ function SetBFCommands(nextcell, previouscell,
                        incell, outcell,
                        initcycle, endcycle : TBFCommand) : byte;
 var
-  i, len : byte;
+  i : byte;
 begin
-  TOK_NEXTCELL     := nextcell;
-    TOK_COMMANDS[MINTOK]   := TOK_NEXTCELL;
-  TOK_PREVIOUSCELL := previouscell;
-    TOK_COMMANDS[MINTOK+1] := TOK_PREVIOUSCELL;
-  TOK_INCCELL      := incrementcell;
-    TOK_COMMANDS[MINTOK+2] := TOK_INCCELL;
-  TOK_DECCELL      := decrementcell;
-    TOK_COMMANDS[MINTOK+3] := TOK_DECCELL;
-  TOK_OUTPUT       := incell;
-    TOK_COMMANDS[MINTOK+4] := TOK_OUTPUT;
-  TOK_INPUT        := outcell;
-    TOK_COMMANDS[MINTOK+5] := TOK_INPUT;
-  TOK_BEGINCYCLE   := initcycle;
-    TOK_COMMANDS[MINTOK+6] := TOK_BEGINCYCLE;
-  TOK_ENDCYCLE     := endcycle;
-    TOK_COMMANDS[MINTOK+7] := TOK_ENDCYCLE;
+  TOK_COMMANDS[TOK_NEXTCELL]     := nextcell;
+  TOK_COMMANDS[TOK_PREVIOUSCELL] := previouscell;
+  TOK_COMMANDS[TOK_INCCELL]      := incrementcell;
+  TOK_COMMANDS[TOK_DECCELL]      := decrementcell;
+  TOK_COMMANDS[TOK_OUTPUT]       := incell;
+  TOK_COMMANDS[TOK_INPUT]        := outcell;
+  TOK_COMMANDS[TOK_BEGINCYCLE]   := initcycle;
+  TOK_COMMANDS[TOK_ENDCYCLE]     := endcycle;
 
   SetBFCommands := 0;
-  len := Length(TOK_COMMANDS[MINTOK]);
+  toklen := Length(TOK_COMMANDS[MINTOK]);
   for i := MINTOK+1 to MAXTOK do
-    if Length(TOK_COMMANDS[i]) <> len then
+    if Length(TOK_COMMANDS[i]) <> toklen then
       Inc(SetBFCommands);
   aretokensregular := SetBFCommands = 0;
 end;
 
+function SetBFCommands(tokens : TArrToken) : byte; overload;
+begin
+  SetBFCommands :=
+    SetBFCommands(tokens[TOK_NEXTCELL]  , tokens[TOK_PREVIOUSCELL],
+                  tokens[TOK_INCCELL]   , tokens[TOK_DECCELL]     ,
+                  tokens[TOK_OUTPUT]    , tokens[TOK_INPUT]       ,
+                  tokens[TOK_BEGINCYCLE], tokens[TOK_ENDCYCLE]    );
+end;
+
 procedure ResetToBrainfuck;
 begin
-  SetBFCommands(BF_NEXTCELL  , BF_PREVIOUSCELL,
-                BF_INCCELL   , BF_DECCELL     ,
-                BF_OUTPUT    , BF_INPUT       ,
-                BF_BEGINCYCLE, BF_ENDCYCLE    );
+  SetBFCommands(BF_COMMANDS);
 end;
 
 
