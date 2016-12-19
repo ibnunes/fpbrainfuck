@@ -100,8 +100,15 @@ var
   bfIO      : TBFIO;           // I/O methods
   aretokensregular : boolean;  // [flag] Are Tokens Regular? (a.k.a. are all lengths equal?)
   toklen           : longword; // Length of tokens
-  debugmode : boolean;         // [flag] Debug Mode Switch
 
+(* ==================== DEBUG MODE ==================== *)
+  var debugmode : boolean;         // [flag] Debug Mode Switch
+
+  procedure __debug__(msg : string);
+  begin
+    if debugmode then write(ErrOutput, msg);
+  end;
+(* ==================== DEBUG MODE ==================== *)
 
 (* IMPLEMENTATION *)
 function IsBFCommand(c : TBFCommand) : boolean;
@@ -209,38 +216,48 @@ var
   i : longword;
   cycle_count : byte;
   acycle : TBFCycle = nil;
+  _debug_acycle_ : string;
   {$DEFINE cmd:=thecode[i]}  // lets simplify the code...
 
 begin  { TODO: change this to work with a stack and not using recursion. }
-  repeat
-    i := 0;
-    while i <= High(thecode) do begin
+  __debug__(CRLF + 'Parsing (' + IntToStr(Length(thecode)) + ' commands received) ');
+  if not (iscycle and (GetCell(cellidx) = 0)) then
+    repeat
+      i := 0;
+      while i <= High(thecode) do begin
 
-      if IsBFCommand(cmd) then begin
-        // So, this is a cycle, heim? Lets do it!
-        if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
-          acycle := GenerateCycle;
-          cycle_count := 1;
-          Inc(i);
-          while (cmd <> TOK_COMMANDS[TOK_ENDCYCLE]) and (cycle_count > 0) do begin
-            if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then
-              Dec(cycle_count)
-            else if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then
-              Inc(cycle_count);
-            if cycle_count <> 0 then
-              AddToCycle(cmd, acycle);
-            Inc(i);
-          end;
-          ParseBrainfuck(acycle, true);
-          FreeCycle(acycle);
-        end else
-          // And here we are, without a cycle!
-          ProcessBrainfuck(cmd);
+        if IsBFCommand(cmd) then begin
+          // So, this is a cycle, heim? Lets do it!
+          if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
+            __debug__('{ new cycle ');
+            acycle := GenerateCycle;
+            _debug_acycle_ := '';
+            cycle_count := 1;
+            while (cmd <> TOK_COMMANDS[TOK_ENDCYCLE]) and (cycle_count > 0) do begin
+              Inc(i);
+              if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then
+                Dec(cycle_count)
+              else if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then
+                Inc(cycle_count);
+              if cycle_count <> 0 then begin
+                AddToCycle(cmd, acycle);
+                _debug_acycle_ := _debug_acycle_ + cmd;
+              end;
+            end;
+            __debug__('«' + _debug_acycle_ + '»');
+            ParseBrainfuck(acycle, true);
+            FreeCycle(acycle);
+            __debug__('} ' + CRLF);
+          end else
+            // And here we are, without a cycle!
+            ProcessBrainfuck(cmd);
+        end;
+
+        Inc(i);
       end;
+    until (not iscycle) or (iscycle and (GetCell(cellidx) = 0));
 
-      Inc(i);
-    end;
-  until (not iscycle) or (iscycle and (GetCell(cellidx) = 0));
+  __debug__('[OK]');
 end;
 {$MACRO off}
 {$ENDREGION}
@@ -297,7 +314,7 @@ begin
   _TOTALBREAK:
   CloseFile(f);
 
-  if debugmode then DebugCommands(thecode);   (* === DEBUG MODE === *)
+  // if debugmode then DebugCommands(thecode);   (* === DEBUG MODE === *)
 end;
 
 procedure ResetParser; forward;

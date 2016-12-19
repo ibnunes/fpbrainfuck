@@ -28,7 +28,8 @@ type
 var
   err_unexpected_message : string = '';
 
-function ShowExitMessage(const exitcode : byte; print : TExitOutput) : byte;
+
+function  ShowExitMessage(const exitcode : byte; print : TExitOutput) : byte;
 
 
 implementation

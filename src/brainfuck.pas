@@ -18,7 +18,7 @@ const
 
 procedure WriteExit(n : byte; s : string);
 begin
-  writeln('A fucking error happened!');
+  writeln(CRLF, 'A fucking error happened!');
   writeln(ErrOutput, n:2, ': ', s);  // [exec] 2> [stream; e.g. /dev/null]
   {$IFDEF windows}
     readln;
@@ -34,18 +34,21 @@ function Main(ps : TSetParam) : byte;
 {$DEFINE __void__ := begin __err ERR_VOID err__ end}
 var
   errcode : byte = ERR_SUCCESS;
+  fucker  : TFucker;
 
 begin
   try
     if ParamCount < 1 then
       __err ERR_NOARGS err__;
 
-    case GetFucker(ps) of
+    fucker := GetFucker(ps);
+    case fucker of
       bfBrain : {default case, already loaded} ;
       bfMorse : SetBFCommands(MORSEFUCK);
       bfBit   : SetBFCommands(BITFUCK)  ;
       bfOther : __void__;
     end;
+    writeln('Using ', fucker, CRLF);
 
     if HasDebugMode(ps) then
       BF_SwitchDebugMode;
@@ -53,9 +56,10 @@ begin
     errcode := ExecuteBrainfuck(ParamStr(ParamCount));
     if errcode <> ERR_SUCCESS then
       __err errcode err__
-    else
+    else begin
       write(CRLF, 'I''m done brainfucking for now... geez! Give me some vodka... -.-''');
-    Main := errcode;
+      Main := errcode;
+    end;
   except
     on e : Exception do begin
       err_unexpected_message := e.message;
@@ -67,7 +71,7 @@ end;
 
 begin
   writeln('Regular Brainfuck-like Languages Interpreter');
-  writeln('By: Igor Nunes. Version: ', VERSION,'. Unit Version: ', fpbrainfuck.version, CRLF);
+  writeln('By: Igor Nunes. Version: ', VERSION,'. Unit Version: ', fpbrainfuck.version);
 
   Halt(ShowExitMessage(Main(GetParamSet), @WriteExit));
 end.
