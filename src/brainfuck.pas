@@ -47,6 +47,9 @@ begin
       bfOther : __void__;
     end;
 
+    if HasDebugMode(ps) then
+      BF_SwitchDebugMode;
+
     errcode := ExecuteBrainfuck(ParamStr(ParamCount));
     if errcode <> ERR_SUCCESS then
       __err errcode err__

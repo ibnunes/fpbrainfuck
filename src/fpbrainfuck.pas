@@ -130,14 +130,12 @@ end;
 
 procedure IncCell(idx : longword);
 begin
-  if datacells[idx] < 255 then
-    Inc(datacells[idx]);
+  Inc(datacells[idx]);
 end;
 
 procedure DecCell(idx : longword);
 begin
-  if datacells[idx] > 0 then
-    Dec(datacells[idx]);
+  Dec(datacells[idx]);
 end;
 
 function GetCell(idx : longword) : TBFCell;
