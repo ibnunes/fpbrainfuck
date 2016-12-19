@@ -24,12 +24,6 @@ const
   MODE_DEBUG_1 = '-d';
   MODE_DEBUG_2 = '--debug';
 
-  (* HALT CODES *)
-  ERR_NOARGS     = 1;
-  ERR_FUCKDEF    = 3;
-  ERR_UNEXPECTED = 6;
-  ERR_VOID       = 9;
-
 
 function GetParamSet : TSetParam;
 // function BF_IsValidParam(p : TParam) : boolean;
@@ -41,7 +35,7 @@ function GetFucker(ps : TSetParam) : TFucker;
 implementation
 
 uses
-  SysUtils;
+  SysUtils, fpbferr;
 
 { const
   DEFAULT_PARAM : TSetParam = (USE_BRAINFUCK_1, USE_BRAINFUCK_2,

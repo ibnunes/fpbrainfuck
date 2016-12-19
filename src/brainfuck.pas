@@ -4,60 +4,27 @@ program brainfuck;
 uses
   sysutils,
   fpbrainfuck,  // interpreter - portable for other programs.
-  fpbfarg;      // specific unit to manage parameters - not portable for other programs!
+  fpbfarg,      // specific unit to manage parameters - not portable for other programs!
+  fpbferr;
 
 const
-  // CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
   VERSION = '1.1.1';
 
 (* Natively supported Brainfuck-like regular variants *)
 const
-  //           BRAINFUCK:    >      <      +      -      .      ,      [      ]      // As defined by Urban Müller, 1993
+  //          BRAINFUCK =    >      <      +      -      .      ,      [      ]      // As defined by Urban Müller, 1993
   MORSEFUCK : TArrToken = ('.--', '--.', '..-', '-..', '-.-', '.-.', '---', '...');  // As defined by Igor Nunes, 2016
   BITFUCK   : TArrToken = ('001', '000', '010', '011', '100', '101', '110', '111');  // As defined by Nuno Picado, 2016
 
-(*
-  HALT CODES
-    0 = success
-    1 = no arguments given
-    2 = source file does no exist
-    3 = external brainfuck-like language definition does not exist or is invalid
-    4 = source file does not contain a correct number of characters
-    5 = controlled internal error
-    6 = uncontrolled general error
-    9 = unimplemented feature
-*)
-
-type
-  TExitOutput = procedure (n : byte; s : string);
-
-var
-  err_unexpected_message : string = '';
-
 procedure WriteExit(n : byte; s : string);
 begin
+  writeln('A fucking error happened!');
   writeln(ErrOutput, n:2, ': ', s);  // [exec] 2> [stream; e.g. /dev/null]
   {$IFDEF windows}
     readln;
   {$ELSE}
     writeln;
   {$ENDIF}
-end;
-
-function ShowExitMessage(const exitcode : byte; print : TExitOutput) : byte;
-(* Shows the meaning of the exit code and returns it unchanged *)
-begin
-  case exitcode of
-    ERR_SUCCESS    : writeln;  // success
-    ERR_NOARGS     : print(exitcode, 'No source file given for brainfucking! Too scared to try it? :P');
-    ERR_NOSOURCE   : print(exitcode, 'Dude! Where the heck is this source file?');
-    ERR_FUCKDEF    : print(exitcode, 'External brainfuck-like language definition does not exist or is invalid.');
-    ERR_TOKSIZE    : print(exitcode, 'Source file does not contain a correct number of characters.');
-    ERR_CONTROLLED : print(exitcode, 'Controlled internal error.');  // for development purposes only
-    ERR_UNEXPECTED : print(exitcode, 'Uncontrolled general error (' + err_unexpected_message + ').');
-    ERR_VOID       : print(exitcode, 'Unimplemented feature.');
-  end;
-  ShowExitMessage := exitcode;
 end;
 
 function Main(ps : TSetParam) : byte;
@@ -82,7 +49,7 @@ begin
 
     errcode := ExecuteBrainfuck(ParamStr(ParamCount));
     if errcode <> ERR_SUCCESS then
-      __err errcode err__  // expand ExecuteBrainfuck to return more that a Boolean
+      __err errcode err__
     else
       write(CRLF, 'I''m done brainfucking for now... geez! Give me some vodka... -.-''');
     Main := errcode;

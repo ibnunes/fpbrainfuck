@@ -63,16 +63,10 @@ function  SetBFCommands(tokens : TArrToken) : byte; overload;
   function  BF_DebugStatus : boolean;
 (* ==================== DEBUG MODE ==================== *)
 
-(* HALT CODES *)
-const
-  ERR_SUCCESS    = 0;
-  ERR_NOSOURCE   = 2;
-  ERR_TOKSIZE    = 4;
-  ERR_CONTROLLED = 5;
 
 
 implementation
-uses crt, sysutils;
+uses crt, sysutils, fpbferr;
 
 const
   BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');  // Original Brainfuck, as defined by Urban Müller, 1993
@@ -269,7 +263,6 @@ label _TOTALBREAK;
       writeln(ErrOutput, 'DEBUG COMMANDS:');
       for j := Low(CODE) to High(CODE) do
         writeln(ErrOutput, 'cmd', j:3, ' = "', CODE[j],'"');
-      // writeln(ErrOutput, '');
     end;
   (* ==================== DEBUG MODE ==================== *)
 
@@ -294,7 +287,7 @@ begin
       t := t + ch;
       if eof(f) and (i < toklen) then begin
         if ch <> #10 then
-          LoadBrainfuck := ERR_CONTROLLED;
+          LoadBrainfuck := ERR_CONTROLLED;  { TODO: new error code is needed! }
         goto _TOTALBREAK;
       end;
     end;
