@@ -28,6 +28,7 @@ interface
 
 const
   version : string = '2.0.2';
+  CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
 
 type
   TBFCommand = string;
@@ -41,7 +42,7 @@ const
   MAXTOK = 7;
 
 type
-  TToken = TBFCommand;
+  TToken    = TBFCommand;
   TArrToken = array[MINTOK..MAXTOK] of TToken;
 
 (* METHODS *)
@@ -265,10 +266,10 @@ label _TOTALBREAK;
     procedure DebugCommands(const CODE : TBFCycle);
     var j : longword;
     begin
-      writeln;
+      writeln(ErrOutput, 'DEBUG COMMANDS:');
       for j := Low(CODE) to High(CODE) do
-        writeln('cmd', j:3, ' = "', CODE[j],'"');
-      writeln;
+        writeln(ErrOutput, 'cmd', j:3, ' = "', CODE[j],'"');
+      // writeln(ErrOutput, '');
     end;
   (* ==================== DEBUG MODE ==================== *)
 
@@ -321,10 +322,9 @@ end;
   var
     i : longword;
   begin
-    writeln;
-    writeln('DEBUG CELLS:');
+    writeln(ErrOutput, CRLF, 'DEBUG CELLS:');
     for i := Low(datacells) to High(datacells) do
-      writeln('c', i:3, ' = ', datacells[i]:3);
+      writeln(ErrOutput, 'c', i:3, ' = ', datacells[i]:3);
   end;
 (* ==================== DEBUG MODE ==================== *)
 

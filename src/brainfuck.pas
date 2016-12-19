@@ -7,7 +7,7 @@ uses
   fpbfarg;      // specific unit to manage parameters - not portable for other programs!
 
 const
-  CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
+  // CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
   VERSION = '1.1.1';
 
 (* Natively supported Brainfuck-like regular variants *)
@@ -36,7 +36,7 @@ var
 
 procedure WriteExit(n : byte; s : string);
 begin
-  writeln(CRLF, n:2, ': ', s);
+  writeln(ErrOutput, n:2, ': ', s);  // [exec] 2> [stream; e.g. /dev/null]
   {$IFDEF windows}
     readln;
   {$ELSE}
@@ -99,13 +99,5 @@ begin
   writeln('Regular Brainfuck-like Languages Interpreter');
   writeln('By: Igor Nunes. Version: ', VERSION,'. Unit Version: ', fpbrainfuck.version, CRLF);
 
-  { Should I use 'Halt' to return the exit code to the OS?
-    Uncomment next line to use it. }
-  // {$DEFINE usehalt}
-  {$IFDEF usehalt}
-  writeln('NOTE: ''usehal'' is defined.', CRLF);
   Halt(ShowExitMessage(Main(GetParamSet), @WriteExit));
-  {$ELSE}
-  ShowExitMessage(Main(GetParamSet), @WriteExit);
-  {$ENDIF}
 end.
