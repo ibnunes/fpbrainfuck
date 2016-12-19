@@ -36,19 +36,24 @@ var
 procedure WriteExit(n : byte; s : string);
 begin
   writeln(CRLF, n:2, ': ', s);
+  {$IFDEF windows}
+    readln;
+  {$ELSE}
+    writeln;
+  {$ENDIF}
 end;
 
 function ShowExitMessage(const exitcode : byte; print : TExitOutput) : byte;
 (* Shows the meaning of the exit code and returns it unchanged *)
 begin
   case exitcode of
-    0 : {default} ;
-    1 : print(exitcode, 'No arguments given.');
-    2 : print(exitcode, 'Source file does not exist.');
+    0 : writeln;  // success
+    1 : print(exitcode, 'No source file given for brainfucking! Too scared to try it? :P');
+    2 : print(exitcode, 'Dude! Where the heck is this source file?');
     3 : print(exitcode, 'External brainfuck-like language definition does not exist or is invalid.');
     4 : print(exitcode, 'Source file does not contain a correct number of characters.');
-    5 : print(exitcode, 'Controlled internal error.');
-    6 : print(exitcode, 'Uncontrolled general error' + err_unexpected_message + '.');
+    5 : print(exitcode, 'Controlled internal error.');  // for development purposes only
+    6 : print(exitcode, 'Uncontrolled general error (' + err_unexpected_message + ').');
     9 : print(exitcode, 'Unimplemented feature.');
   end;
   ShowExitMessage := exitcode;
@@ -62,9 +67,10 @@ function Main(ps : TSetParam) : byte;
 begin
   try
     if ParamCount < 1 then
-      Halt(1);
+      __err 1 err__
+    else
+      Main := 0;
 
-    ps := GetParamSet;
     case GetFucker(ps) of
       bfBrain : {default case, already loaded} ;
       bfMorse : SetBFCommands(MORSEFUCK);
@@ -73,7 +79,7 @@ begin
     end;
 
     if not ExecuteBrainfuck(ParamStr(ParamCount)) then
-      __err 5 err__
+      __err 5 err__  // expand ExecuteBrainfuck to return more that a Boolean
     else
       write(CRLF, 'I''m done brainfucking for now... geez! Give me some vodka... -.-''');
   except
@@ -87,28 +93,15 @@ end;
 
 begin
   writeln('Regular Brainfuck-like Languages Interpreter');
-  writeln('By: Igor Nunes. Version: ', VERSION,'. Unit Version: ', fpbrainfuck.version);
-  writeln;
+  writeln('By: Igor Nunes. Version: ', VERSION,'. Unit Version: ', fpbrainfuck.version, CRLF);
 
-  if ParamCount < 1 then
-    writeln('No source file given for brainfucking! Too scared to try it? :P')
-  else if ParamCount > 1 then
-    writeln('You''ve given a source file and more! I just need the source file, my dear brainfucker! ;)')
-  else if not ExecuteBrainfuck(ParamStr(1)) then
-    writeln('Dude! Where the heck is this source file?')
-  else
-    write(CRLF, 'I''m done brainfucking for now... geez! Give me some vodka... -.-''');
-
-  {$IFDEF windows}
-    readln;
-  {$ELSE}
-    writeln;
-  {$ENDIF}
-
-  Halt(0);  // END OF INITIAL INTERPRETER
-
-
-  (* ===== NEW INTERPRETER in development ===== *)
-
+  { Should I use 'Halt' to return the exit code to the OS?
+    Uncomment next line to use it. }
+  // {$DEFINE usehalt}
+  {$IFDEF usehalt}
+  writeln('NOTE: ''usehal'' is defined.', CRLF);
   Halt(ShowExitMessage(Main(GetParamSet), @WriteExit));
+  {$ELSE}
+  ShowExitMessage(Main(GetParamSet), @WriteExit);
+  {$ENDIF}
 end.
