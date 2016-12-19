@@ -1,3 +1,26 @@
+(*
+===== fpbrainfuck =====
+Unit for Free Pascal and compatible Extended Pascal, Object Pascal and Delphi compilers.
+
+Licensed under the GNU-GPL 3.0.
+
+Author:         Igor Nunes, a.k.a. thoga31
+Versions:
+  Stable:       2.0.1
+  In progress:  2.1.0
+Date:           December 18, 2016
+
+=== General information ===
+
+This unit provides an interpreter for Brainfuck and regular variants.
+It uses only the procedural paradigm, in spite of using the mode objfpc for some particularly useful features.
+
+For a complete definition of "Brainfuck" and "regular variants", refer to the documentation.
+
+For a complete OOP approach, please refer to my friend's repository, Nuno Picado, available at:
+  https://github.com/nunopicado/BrainFuckParser
+*)
+
 unit fpbrainfuck;
 {$MODE objfpc}
 
@@ -12,6 +35,16 @@ type
   TBFInput   = function : char;
   TBFOutput  = procedure(prompt : char);
 
+(* TOKENS *)
+const
+  MINTOK = 0;
+  MAXTOK = 7;
+
+type
+  TToken = TBFCommand;
+  TArrToken = array[MINTOK..MAXTOK] of TToken;
+
+(* METHODS *)
 function  ExecuteBrainfuck(filename : string) : boolean;
 function  ExecuteBrainfuck(thecode : TBFCode) : boolean; overload;
 procedure DefIOBrainfuck(inmethod : TBFInput; outmethod : TBFOutput);
@@ -22,23 +55,19 @@ function  SetBFCommands(nextcell, previouscell,
                         incrementcell, decrementcell,
                         incell, outcell,
                         initcycle, endcycle : TBFCommand) : byte;
+function  SetBFCommands(tokens : TArrToken) : byte; overload;
+
+(* ==================== DEBUG MODE ==================== *)
+  procedure BF_SwitchDebugMode;
+  function  BF_DebugStatus : boolean;
+(* ==================== DEBUG MODE ==================== *)
 
 
 implementation
 uses crt, sysutils;
 
-(* TOKENS *)
 const
-  MINTOK = 0;
-  MAXTOK = 7;
-
-type
-  TToken = TBFCommand;
-  TArrToken = array[MINTOK..MAXTOK] of TToken;
-
-// default Brainfuck
-const
-  BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');
+  BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');  // Original Brainfuck, as defined by Urban Müller, 1993
   TOK_NEXTCELL     = 0;
   TOK_PREVIOUSCELL = 1;
   TOK_INCCELL      = 2;
@@ -48,7 +77,7 @@ const
   TOK_BEGINCYCLE   = 6;
   TOK_ENDCYCLE     = 7;
 
-// acting like constant
+// acting like constant while the State Machine runs the code
 var
   TOK_COMMANDS : TArrToken;
 
@@ -67,8 +96,9 @@ var
   datacells : TBFArrCell;      // cells
   cellidx   : longword;        // pointer
   bfIO      : TBFIO;           // I/O methods
-  aretokensregular : boolean;  // Are Tokens Regular? (a.k.a. all lengths equal)
+  aretokensregular : boolean;  // [flag] Are Tokens Regular? (a.k.a. are all lengths equal?)
   toklen           : longword; // Length of tokens
+  debugmode : boolean;         // [flag] Debug Mode Switch
 
 
 (* IMPLEMENTATION *)
@@ -76,7 +106,6 @@ function IsBFCommand(c : TBFCommand) : boolean;
 var
   t : TToken;
 begin
-  // IsBFCommand := CharInSet(ch, BF_COMMANDS);
   IsBFCommand := false;
   for t in TOK_COMMANDS do
     if t = c then begin
@@ -153,6 +182,7 @@ end;
 procedure ProcessBrainfuck(ch : TBFCommand);
 (* Main procedure of all! This is the brain of the interpreter. *)
 begin
+  // Why the heck fpc is not compiling string cases? I hate this massive collection of IFs...
        if ch = TOK_COMMANDS[TOK_INPUT]        then InputCell(cellidx)
   else if ch = TOK_COMMANDS[TOK_OUTPUT]       then OutputCell(cellidx)
   else if ch = TOK_COMMANDS[TOK_INCCELL]      then IncCell(cellidx)
@@ -179,9 +209,9 @@ var
   i : longword;
   cycle_count : byte;
   acycle : TBFCycle = nil;
-  {$DEFINE cmd:=thecode[i]}
+  {$DEFINE cmd:=thecode[i]}  // lets simplify the code...
 
-begin
+begin  { TODO: change this to work with a stack and not using recursion. }
   repeat
     i := 0;
     while i <= High(thecode) do begin
@@ -203,10 +233,9 @@ begin
           end;
           ParseBrainfuck(acycle, true);
           FreeCycle(acycle);
-        end;
-
-        // And here we are, without a cycle!
-        ProcessBrainfuck(cmd);
+        end else
+          // And here we are, without a cycle!
+          ProcessBrainfuck(cmd);
       end;
 
       Inc(i);
@@ -225,15 +254,16 @@ var
   i  : byte;
 label _TOTALBREAK;
 
-  // uncomment for debugging purposes only
-  { procedure DebugCommands(const CODE : TBFCycle);
-  var j : longword;
-  begin
-    writeln;
-    for j := Low(CODE) to High(CODE) do
-      writeln('cmd', j:3, ' = "', CODE[j],'"');
-    writeln;
-  end; }
+  (* ==================== DEBUG MODE ==================== *)
+    procedure DebugCommands(const CODE : TBFCycle);
+    var j : longword;
+    begin
+      writeln;
+      for j := Low(CODE) to High(CODE) do
+        writeln('cmd', j:3, ' = "', CODE[j],'"');
+      writeln;
+    end;
+  (* ==================== DEBUG MODE ==================== *)
 
 begin
   LoadBrainfuck := FileExists(filename) and aretokensregular;
@@ -260,7 +290,8 @@ begin
   end;
   _TOTALBREAK:
   CloseFile(f);
-  // DebugCommands(thecode);  { uncomment for debugging purposes only }
+
+  if debugmode then DebugCommands(thecode);   (* === DEBUG MODE === *)
 end;
 
 procedure ResetParser; forward;
@@ -271,16 +302,17 @@ begin
 end;
 
 
-// uncomment for debugging purposes only
-{ procedure DebugCells;
-var
-  i : longword;
-begin
-  writeln;
-  writeln('DEBUG CELLS:');
-  for i := Low(datacells) to High(datacells) do
-    writeln('c', i:3, ' = ', datacells[i]:3);
-end; }
+(* ==================== DEBUG MODE ==================== *)
+  procedure DebugCells;
+  var
+    i : longword;
+  begin
+    writeln;
+    writeln('DEBUG CELLS:');
+    for i := Low(datacells) to High(datacells) do
+      writeln('c', i:3, ' = ', datacells[i]:3);
+  end;
+(* ==================== DEBUG MODE ==================== *)
 
 function ExecuteBrainfuck(filename : string) : boolean;
 var thecode : TBFCycle;
@@ -290,7 +322,9 @@ begin
     Exit;
 
   ParseBrainfuck(thecode, false);
-  // DebugCells;  { uncomment for debugging purposes only }
+
+  if debugmode then DebugCells;  (* === DEBUG MODE === *)
+
   FreeBrainfuck(thecode);
 end;
 
@@ -299,7 +333,8 @@ begin
   ExecuteBrainfuck := aretokensregular;
   if ExecuteBrainfuck then
     ParseBrainfuck(thecode, false);
-  // DebugCells;  { uncomment for debugging purposes only }
+
+  if debugmode then DebugCells;  (* === DEBUG MODE === *)
 end;
 {$ENDREGION}
 
@@ -376,8 +411,21 @@ begin
   SetBFCommands(BF_COMMANDS);
 end;
 
+(* ==================== DEBUG MODE ==================== *)
+  procedure BF_SwitchDebugMode;
+  begin
+    debugmode := not debugmode;
+  end;
+
+  function BF_DebugStatus : boolean;
+  begin
+    BF_DebugStatus := debugmode;
+  end;
+(* ==================== DEBUG MODE ==================== *)
+
 
 initialization
+  debugmode := false;
   ResetToBrainfuck;
   ResetParser;
   bfIO.Input  := @DefaultInput;
