@@ -6,9 +6,9 @@ Licensed under the GNU-GPL 3.0.
 
 Author:         Igor Nunes, a.k.a. thoga31
 Versions:
-  Stable:       2.0.1
-  In progress:  2.1.0
-Date:           December 18, 2016
+  Stable:       2.0.2
+  In progress:  2.1.0 ?
+Date:           December 19, 2016
 
 === General information ===
 
@@ -27,7 +27,7 @@ unit fpbrainfuck;
 interface
 
 const
-  version : string = '2.0.1';
+  version : string = '2.0.2';
 
 type
   TBFCommand = string;
@@ -45,8 +45,8 @@ type
   TArrToken = array[MINTOK..MAXTOK] of TToken;
 
 (* METHODS *)
-function  ExecuteBrainfuck(filename : string) : boolean;
-function  ExecuteBrainfuck(thecode : TBFCode) : boolean; overload;
+function  ExecuteBrainfuck(filename : string) : byte;
+function  ExecuteBrainfuck(thecode : TBFCode) : byte; overload;
 procedure DefIOBrainfuck(inmethod : TBFInput; outmethod : TBFOutput);
 procedure DefIOBrainfuck(inmethod : TBFInput); overload;
 procedure DefIOBrainfuck(outmethod : TBFOutput); overload;
@@ -61,6 +61,13 @@ function  SetBFCommands(tokens : TArrToken) : byte; overload;
   procedure BF_SwitchDebugMode;
   function  BF_DebugStatus : boolean;
 (* ==================== DEBUG MODE ==================== *)
+
+(* HALT CODES *)
+const
+  ERR_SUCCESS    = 0;
+  ERR_NOSOURCE   = 2;
+  ERR_TOKSIZE    = 4;
+  ERR_CONTROLLED = 5;
 
 
 implementation
@@ -246,7 +253,7 @@ end;
 {$ENDREGION}
 
 {$REGION Brainfuck source code management}
-function LoadBrainfuck(filename : string; out thecode : TBFCycle) : boolean;
+function LoadBrainfuck(filename : string; out thecode : TBFCycle) : byte;
 var
   f  : file of char;
   ch : char;
@@ -266,8 +273,14 @@ label _TOTALBREAK;
   (* ==================== DEBUG MODE ==================== *)
 
 begin
-  LoadBrainfuck := FileExists(filename) and aretokensregular;
-  if not LoadBrainfuck then
+  if not aretokensregular then
+    LoadBrainfuck := ERR_TOKSIZE
+  else if not FileExists(filename) then
+    LoadBrainfuck := ERR_NOSOURCE
+  else
+    LoadBrainfuck := ERR_SUCCESS;
+
+  if LoadBrainfuck <> ERR_SUCCESS then
     Exit;
 
   AssignFile(f, filename);
@@ -279,7 +292,8 @@ begin
       read(f, ch);
       t := t + ch;
       if eof(f) and (i < toklen) then begin
-        LoadBrainfuck := ch = #10;
+        if ch <> #10 then
+          LoadBrainfuck := ERR_CONTROLLED;
         goto _TOTALBREAK;
       end;
     end;
@@ -314,11 +328,11 @@ end;
   end;
 (* ==================== DEBUG MODE ==================== *)
 
-function ExecuteBrainfuck(filename : string) : boolean;
+function ExecuteBrainfuck(filename : string) : byte;
 var thecode : TBFCycle;
 begin
   ExecuteBrainfuck := LoadBrainfuck(filename, thecode);
-  if not ExecuteBrainfuck then
+  if ExecuteBrainfuck <> ERR_SUCCESS then
     Exit;
 
   ParseBrainfuck(thecode, false);
@@ -328,11 +342,13 @@ begin
   FreeBrainfuck(thecode);
 end;
 
-function  ExecuteBrainfuck(thecode : TBFCode) : boolean; overload;
+function ExecuteBrainfuck(thecode : TBFCode) : byte; overload;
 begin
-  ExecuteBrainfuck := aretokensregular;
-  if ExecuteBrainfuck then
+  if aretokensregular then begin
     ParseBrainfuck(thecode, false);
+    ExecuteBrainfuck := ERR_SUCCESS;
+  end else
+    ExecuteBrainfuck := ERR_TOKSIZE;
 
   if debugmode then DebugCells;  (* === DEBUG MODE === *)
 end;

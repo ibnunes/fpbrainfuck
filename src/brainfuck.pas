@@ -8,7 +8,7 @@ uses
 
 const
   CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
-  VERSION = '1.1.0';
+  VERSION = '1.1.1';
 
 (* Natively supported Brainfuck-like regular variants *)
 const
@@ -27,6 +27,7 @@ const
     6 = uncontrolled general error
     9 = unimplemented feature
 *)
+
 type
   TExitOutput = procedure (n : byte; s : string);
 
@@ -47,14 +48,14 @@ function ShowExitMessage(const exitcode : byte; print : TExitOutput) : byte;
 (* Shows the meaning of the exit code and returns it unchanged *)
 begin
   case exitcode of
-    0 : writeln;  // success
-    1 : print(exitcode, 'No source file given for brainfucking! Too scared to try it? :P');
-    2 : print(exitcode, 'Dude! Where the heck is this source file?');
-    3 : print(exitcode, 'External brainfuck-like language definition does not exist or is invalid.');
-    4 : print(exitcode, 'Source file does not contain a correct number of characters.');
-    5 : print(exitcode, 'Controlled internal error.');  // for development purposes only
-    6 : print(exitcode, 'Uncontrolled general error (' + err_unexpected_message + ').');
-    9 : print(exitcode, 'Unimplemented feature.');
+    ERR_SUCCESS    : writeln;  // success
+    ERR_NOARGS     : print(exitcode, 'No source file given for brainfucking! Too scared to try it? :P');
+    ERR_NOSOURCE   : print(exitcode, 'Dude! Where the heck is this source file?');
+    ERR_FUCKDEF    : print(exitcode, 'External brainfuck-like language definition does not exist or is invalid.');
+    ERR_TOKSIZE    : print(exitcode, 'Source file does not contain a correct number of characters.');
+    ERR_CONTROLLED : print(exitcode, 'Controlled internal error.');  // for development purposes only
+    ERR_UNEXPECTED : print(exitcode, 'Uncontrolled general error (' + err_unexpected_message + ').');
+    ERR_VOID       : print(exitcode, 'Unimplemented feature.');
   end;
   ShowExitMessage := exitcode;
 end;
@@ -63,13 +64,14 @@ function Main(ps : TSetParam) : byte;
 {$MACRO on}
 {$DEFINE __err := begin Main:=}
 {$DEFINE err__ := ;Exit; end}
-{$DEFINE __void__ := begin __err 9 err__ end}
+{$DEFINE __void__ := begin __err ERR_VOID err__ end}
+var
+  errcode : byte = ERR_SUCCESS;
+
 begin
   try
     if ParamCount < 1 then
-      __err 1 err__
-    else
-      Main := 0;
+      __err ERR_NOARGS err__;
 
     case GetFucker(ps) of
       bfBrain : {default case, already loaded} ;
@@ -78,14 +80,16 @@ begin
       bfOther : __void__;
     end;
 
-    if not ExecuteBrainfuck(ParamStr(ParamCount)) then
-      __err 5 err__  // expand ExecuteBrainfuck to return more that a Boolean
+    errcode := ExecuteBrainfuck(ParamStr(ParamCount));
+    if errcode <> ERR_SUCCESS then
+      __err errcode err__  // expand ExecuteBrainfuck to return more that a Boolean
     else
       write(CRLF, 'I''m done brainfucking for now... geez! Give me some vodka... -.-''');
+    Main := errcode;
   except
     on e : Exception do begin
-      __err 6 err__;
       err_unexpected_message := e.message;
+      __err ERR_UNEXPECTED err__;
     end;
   end;
 end;

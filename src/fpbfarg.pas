@@ -24,6 +24,12 @@ const
   MODE_DEBUG_1 = '-d';
   MODE_DEBUG_2 = '--debug';
 
+  (* HALT CODES *)
+  ERR_NOARGS     = 1;
+  ERR_FUCKDEF    = 3;
+  ERR_UNEXPECTED = 6;
+  ERR_VOID       = 9;
+
 
 function GetParamSet : TSetParam;
 // function BF_IsValidParam(p : TParam) : boolean;
