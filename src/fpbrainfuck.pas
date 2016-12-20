@@ -66,7 +66,7 @@ function  SetBFCommands(tokens : TArrToken) : byte; overload;
 
 
 implementation
-uses crt, sysutils, fpbferr;
+uses crt, sysutils, fpbferr, fpbftype;
 
 const
   BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');  // Original Brainfuck, as defined by Urban Müller, 1993
@@ -78,6 +78,7 @@ const
   TOK_INPUT        = 5;
   TOK_BEGINCYCLE   = 6;
   TOK_ENDCYCLE     = 7;
+  TAPE_INITSIZE    = 65535;  // MAX_WORD
 
 // acting like constant while the State Machine runs the code
 var
@@ -97,6 +98,7 @@ type
 var
   datacells : TBFArrCell;      // cells
   cellidx   : longword;        // pointer
+  lastcell  : longword;        // indicates which cell is the last one
   bfIO      : TBFIO;           // I/O methods
   aretokensregular : boolean;  // [flag] Are Tokens Regular? (a.k.a. are all lengths equal?)
   toklen           : longword; // Length of tokens
@@ -131,8 +133,10 @@ end;
 
 procedure CreateCell;
 begin
-  SetLength(datacells, Length(datacells)+1);
-  datacells[High(datacells)] := 0;
+  if (lastcell mod TAPE_INITSIZE) = 0 then
+    SetLength(datacells, Length(datacells) + TAPE_INITSIZE);
+  Inc(lastcell);
+  datacells[lastcell] := 0;
 end;
 
 procedure IncCell(idx : longword);
@@ -337,7 +341,7 @@ end;
     i : longword;
   begin
     writeln(ErrOutput, CRLF, 'DEBUG CELLS:');
-    for i := Low(datacells) to High(datacells) do
+    for i := Low(datacells) to lastcell do
       writeln(ErrOutput, 'c', i:3, ' = ', datacells[i]:3);
   end;
 (* ==================== DEBUG MODE ==================== *)
@@ -398,7 +402,8 @@ end;
 
 procedure ResetParser;
 begin
-  SetLength(datacells, 1);  // every program starts with cell 'c0' defined
+  SetLength(datacells, TAPE_INITSIZE);  // every program starts with cell 'c0' defined
+  lastcell := TAPE_INITSIZE-1;
   datacells[0] := 0;
   cellidx := 0;
 end;

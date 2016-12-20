@@ -1,5 +1,4 @@
 {$MODE objfpc}
-// {$MODESWITCH advancedrecords}
 program brainfuck;
 uses
   sysutils,
