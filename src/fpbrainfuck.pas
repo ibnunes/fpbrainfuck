@@ -54,7 +54,7 @@ procedure DefIOBrainfuck(outmethod : TBFOutput); overload;
 procedure ResetToBrainfuck;
 function  SetBFCommands(nextcell, previouscell,
                         incrementcell, decrementcell,
-                        incell, outcell,
+                        outcell, incell,
                         initcycle, endcycle : TBFCommand) : byte;
 function  SetBFCommands(tokens : TArrToken) : byte; overload;
 
@@ -208,6 +208,7 @@ begin
 end;
 
 {$MACRO on}
+procedure DebugCells; forward;
 procedure ParseBrainfuck(thecode : TBFCycle; iscycle : boolean); overload;
 (* We consider that the complete program is a "cycle",
    except it terminates with the end of commands to
@@ -220,7 +221,7 @@ var
   {$DEFINE cmd:=thecode[i]}  // lets simplify the code...
 
 begin  { TODO: change this to work with a stack and not using recursion. }
-  __debug__(CRLF + 'Parsing (' + IntToStr(Length(thecode)) + ' commands received) ');
+  __debug__(CRLF + 'Parsing (' + IntToStr(Length(thecode)) + ' commands received)');
   if not (iscycle and (GetCell(cellidx) = 0)) then
     repeat
       i := 0;
@@ -229,25 +230,29 @@ begin  { TODO: change this to work with a stack and not using recursion. }
         if IsBFCommand(cmd) then begin
           // So, this is a cycle, heim? Lets do it!
           if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
-            __debug__('{ new cycle ');
             acycle := GenerateCycle;
-            _debug_acycle_ := '';
+            _debug_acycle_ := '';  // to debug issue #6
             cycle_count := 1;
-            while (cmd <> TOK_COMMANDS[TOK_ENDCYCLE]) and (cycle_count > 0) do begin
+            __debug__(CRLF + '{ new cycle [' + IntToStr(cycle_count));  // to debug issue #6
+            while (cmd <> TOK_COMMANDS[TOK_ENDCYCLE]) or (cycle_count > 0) do begin
               Inc(i);
-              if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then
-                Dec(cycle_count)
-              else if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then
+              if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then begin
+                Dec(cycle_count);
+                __debug__(' -> ' + IntToStr(cycle_count) + '@' + IntToStr(i));  // to debug issue #6
+              end else if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
                 Inc(cycle_count);
+                __debug__(' -> ' + IntToStr(cycle_count) + '@' + IntToStr(i));  // to debug issue #6
+              end;
               if cycle_count <> 0 then begin
                 AddToCycle(cmd, acycle);
-                _debug_acycle_ := _debug_acycle_ + cmd;
+                _debug_acycle_ := _debug_acycle_ + cmd;  // to debug issue #6
               end;
             end;
-            __debug__('«' + _debug_acycle_ + '»');
+            __debug__('] «' + _debug_acycle_ + '»');  // to debug issue #6
             ParseBrainfuck(acycle, true);
             FreeCycle(acycle);
-            __debug__('} ' + CRLF);
+            if debugmode then DebugCells;
+            __debug__(' } ' + CRLF);  // to debug issue #6
           end else
             // And here we are, without a cycle!
             ProcessBrainfuck(cmd);
@@ -257,7 +262,7 @@ begin  { TODO: change this to work with a stack and not using recursion. }
       end;
     until (not iscycle) or (iscycle and (GetCell(cellidx) = 0));
 
-  __debug__('[OK]');
+  __debug__(' [OK]');
 end;
 {$MACRO off}
 {$ENDREGION}
@@ -272,13 +277,14 @@ var
 label _TOTALBREAK;
 
   (* ==================== DEBUG MODE ==================== *)
-    procedure DebugCommands(const CODE : TBFCycle);
+  // Not in use at the current version
+    { procedure DebugCommands(const CODE : TBFCycle);
     var j : longword;
     begin
       writeln(ErrOutput, 'DEBUG COMMANDS:');
       for j := Low(CODE) to High(CODE) do
         writeln(ErrOutput, 'cmd', j:3, ' = "', CODE[j],'"');
-    end;
+    end; }
   (* ==================== DEBUG MODE ==================== *)
 
 begin
@@ -399,7 +405,7 @@ end;
 
 function SetBFCommands(nextcell, previouscell,
                        incrementcell, decrementcell,
-                       incell, outcell,
+                       outcell, incell,
                        initcycle, endcycle : TBFCommand) : byte;
 var
   i : byte;
@@ -408,8 +414,8 @@ begin
   TOK_COMMANDS[TOK_PREVIOUSCELL] := previouscell;
   TOK_COMMANDS[TOK_INCCELL]      := incrementcell;
   TOK_COMMANDS[TOK_DECCELL]      := decrementcell;
-  TOK_COMMANDS[TOK_OUTPUT]       := incell;
-  TOK_COMMANDS[TOK_INPUT]        := outcell;
+  TOK_COMMANDS[TOK_OUTPUT]       := outcell;
+  TOK_COMMANDS[TOK_INPUT]        := incell;
   TOK_COMMANDS[TOK_BEGINCYCLE]   := initcycle;
   TOK_COMMANDS[TOK_ENDCYCLE]     := endcycle;
 
