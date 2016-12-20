@@ -212,61 +212,38 @@ begin
 end;
 
 {$MACRO on}
-procedure DebugCells; forward;
 procedure ParseBrainfuck(thecode : TBFCycle; iscycle : boolean); overload;
-(* We consider that the complete program is a "cycle",
-   except it terminates with the end of commands to
-   process and not when the cell is zero. *)
 var
   i : longword;
-  cycle_count : byte;
-  acycle : TBFCycle = nil;
-  _debug_acycle_ : string;
+  cycles : TStackOfWord;
+  cycle_count : longword = 0;
   {$DEFINE cmd:=thecode[i]}  // lets simplify the code...
-
-begin  { TODO: change this to work with a stack and not using recursion. }
-  __debug__(CRLF + 'Parsing (' + IntToStr(Length(thecode)) + ' commands received)');
-  if not (iscycle and (GetCell(cellidx) = 0)) then
-    repeat
-      i := 0;
-      while i <= High(thecode) do begin
-
-        if IsBFCommand(cmd) then begin
-          // So, this is a cycle, heim? Lets do it!
-          if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
-            acycle := GenerateCycle;
-            _debug_acycle_ := '';  // to debug issue #6
-            cycle_count := 1;
-            __debug__(CRLF + '{ new cycle [' + IntToStr(cycle_count));  // to debug issue #6
-            while (cmd <> TOK_COMMANDS[TOK_ENDCYCLE]) or (cycle_count > 0) do begin
-              Inc(i);
-              if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then begin
-                Dec(cycle_count);
-                __debug__(' -> ' + IntToStr(cycle_count) + '@' + IntToStr(i));  // to debug issue #6
-              end else if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
-                Inc(cycle_count);
-                __debug__(' -> ' + IntToStr(cycle_count) + '@' + IntToStr(i));  // to debug issue #6
-              end;
-              if cycle_count <> 0 then begin
-                AddToCycle(cmd, acycle);
-                _debug_acycle_ := _debug_acycle_ + cmd;  // to debug issue #6
-              end;
-            end;
-            __debug__('] «' + _debug_acycle_ + '»');  // to debug issue #6
-            ParseBrainfuck(acycle, true);
-            FreeCycle(acycle);
-            if debugmode then DebugCells;
-            __debug__(' } ' + CRLF);  // to debug issue #6
-          end else
-            // And here we are, without a cycle!
-            ProcessBrainfuck(cmd);
+begin
+  i := 0;
+  while i < Length(thecode) do begin
+    if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
+      if GetCell(cellidx) = 0 then begin
+        cycle_count := 1;
+        while (cmd <> TOK_COMMANDS[TOK_ENDCYCLE]) or (cycle_count > 0) do begin
+          Inc(i);
+          if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then
+            Inc(cycle_count)
+          else if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then
+            Dec(cycle_count);
         end;
+      end else
+        cycles.Push(i);
+    end
+    else if cmd = TOK_COMMANDS[TOK_ENDCYCLE] then begin
+      if GetCell(cellidx) = 0 then
+        cycles.Pop
+      else
+        i := cycles.Peek;
+    end else
+      ProcessBrainfuck(cmd);
 
-        Inc(i);
-      end;
-    until (not iscycle) or (iscycle and (GetCell(cellidx) = 0));
-
-  __debug__(' [OK]');
+    Inc(i);
+  end;
 end;
 {$MACRO off}
 {$ENDREGION}
