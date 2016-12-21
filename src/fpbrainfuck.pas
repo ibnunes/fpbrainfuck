@@ -6,8 +6,8 @@ Licensed under the GNU-GPL 3.0.
 
 Author:         Igor Nunes, a.k.a. thoga31
 Versions:
-  Stable:       2.0.2
-  In progress:  2.1.0 ?
+  Stable:       2.1.0-candidate
+  In progress:  2.1.0-final
 Date:           December 19, 2016
 
 === General information ===
@@ -25,14 +25,15 @@ unit fpbrainfuck;
 {$MODE objfpc}
 
 interface
+uses fpbftype;
 
 const
-  version : string = '2.0.2';
+  version : string = '2.1.0-candidate';
   CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
 
 type
-  TBFCommand = string;
-  TBFCode    = array of TBFCommand;
+  // TBFCommand = string;
+  // TBFCode    = array of TBFCommand;
   TBFInput   = function : char;
   TBFOutput  = procedure(prompt : char);
 
@@ -66,7 +67,7 @@ function  SetBFCommands(tokens : TArrToken) : byte; overload;
 
 
 implementation
-uses crt, sysutils, fpbferr, fpbftype;
+uses crt, sysutils, fpbferr; //, fpbftype;
 
 const
   BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');  // Original Brainfuck, as defined by Urban Müller, 1993
@@ -171,22 +172,22 @@ end;
 {$ENDREGION}
 
 {$REGION Cycle Management}
-function GenerateCycle : TBFCycle;
+{ function GenerateCycle : TBFCycle;
 begin
   SetLength(GenerateCycle, 0);
-end;
+end; }
 
-procedure FreeCycle(var cycle : TBFCycle);
+{ procedure FreeCycle(var cycle : TBFCycle);
 begin
   SetLength(cycle, 0);
   cycle := nil;
-end;
+end; }
 
-procedure AddToCycle(ch : TBFCommand; var cycle : TBFCycle);
+{ procedure AddToCycle(ch : TBFCommand; var cycle : TBFCycle);
 begin
   SetLength(cycle, Length(cycle)+1);
   cycle[High(cycle)] := ch;
-end;
+end; }
 {$ENDREGION}
 
 {$REGION Brainfuck interpreter}
@@ -212,15 +213,15 @@ begin
 end;
 
 {$MACRO on}
-procedure ParseBrainfuck(thecode : TBFCycle; iscycle : boolean); overload;
+procedure ParseBrainfuck(thecode : TBFCycle); overload;
 var
   i : longword;
   cycles : TStackOfWord;
   cycle_count : longword = 0;
-  {$DEFINE cmd:=thecode[i]}  // lets simplify the code...
+  {$DEFINE cmd:=thecode.Token(i)}  // lets simplify the code...
 begin
   i := 0;
-  while i < Length(thecode) do begin
+  while i < thecode.Count do begin
     if cmd = TOK_COMMANDS[TOK_BEGINCYCLE] then begin
       if GetCell(cellidx) = 0 then begin
         cycle_count := 1;
@@ -249,7 +250,7 @@ end;
 {$ENDREGION}
 
 {$REGION Brainfuck source code management}
-function LoadBrainfuck(filename : string; out thecode : TBFCycle) : byte;
+function LoadBrainfuck(filename : string; var thecode : TBFCycle) : byte;
 var
   f  : file of char;
   ch : char;
@@ -259,13 +260,13 @@ label _TOTALBREAK;
 
   (* ==================== DEBUG MODE ==================== *)
   // Not in use at the current version
-    { procedure DebugCommands(const CODE : TBFCycle);
+    procedure DebugCommands(const CODE : TBFCycle);
     var j : longword;
     begin
       writeln(ErrOutput, 'DEBUG COMMANDS:');
-      for j := Low(CODE) to High(CODE) do
-        writeln(ErrOutput, 'cmd', j:3, ' = "', CODE[j],'"');
-    end; }
+      for j := 0 to CODE.Count do
+        writeln(ErrOutput, 'cmd', j:3, ' = "', CODE.Token(j),'"');
+    end;
   (* ==================== DEBUG MODE ==================== *)
 
 begin
@@ -276,12 +277,14 @@ begin
   else
     LoadBrainfuck := ERR_SUCCESS;
 
+  __debug__('LoadBrainfuck initially returned ' + IntToStr(LoadBrainfuck) + CRLF);
   if LoadBrainfuck <> ERR_SUCCESS then
     Exit;
 
   AssignFile(f, filename);
   Reset(f);
-  thecode := GenerateCycle;
+  // thecode := GenerateCycle;
+  __debug__('LoadBrainfuck is now reading the source file...' + CRLF);
   while not eof(f) do begin
     t := '';
     for i in [1..toklen] do begin
@@ -293,21 +296,24 @@ begin
         goto _TOTALBREAK;
       end;
     end;
-    if IsBFCommand(t) then
-      AddToCycle(t, thecode)
-    else
+    if IsBFCommand(t) then begin
+      __debug__('  >>> Appending token «' + t + '»' + CRLF);
+      thecode.Append(t)
+      // AddToCycle(t, thecode)
+    end else
       Seek(f, FilePos(f)-toklen+1);
   end;
   _TOTALBREAK:
   CloseFile(f);
+  __debug__('LoadBrainfuck terminated successfully.' + CRLF);
 
-  // if debugmode then DebugCommands(thecode);   (* === DEBUG MODE === *)
+  if debugmode then DebugCommands(thecode);   (* === DEBUG MODE === *)
 end;
 
 procedure ResetParser; forward;
-procedure FreeBrainfuck(var thecode : TBFCycle);
+procedure FreeBrainfuck; // (var thecode : TBFCycle);
 begin
-  FreeCycle(thecode);
+  // FreeCycle(thecode);
   ResetParser;
 end;
 
@@ -317,7 +323,7 @@ end;
   var
     i : longword;
   begin
-    writeln(ErrOutput, CRLF, 'DEBUG CELLS:');
+    writeln(ErrOutput, CRLF, 'DEBUG CELLS [', lastcell, ']:');
     for i := Low(datacells) to lastcell do
       writeln(ErrOutput, 'c', i:3, ' = ', datacells[i]:3);
   end;
@@ -330,17 +336,17 @@ begin
   if ExecuteBrainfuck <> ERR_SUCCESS then
     Exit;
 
-  ParseBrainfuck(thecode, false);
+  ParseBrainfuck(thecode);
 
   if debugmode then DebugCells;  (* === DEBUG MODE === *)
 
-  FreeBrainfuck(thecode);
+  // FreeBrainfuck; //(thecode);
 end;
 
 function ExecuteBrainfuck(thecode : TBFCode) : byte; overload;
 begin
   if aretokensregular then begin
-    ParseBrainfuck(thecode, false);
+    ParseBrainfuck(thecode);
     ExecuteBrainfuck := ERR_SUCCESS;
   end else
     ExecuteBrainfuck := ERR_TOKSIZE;
@@ -380,7 +386,7 @@ end;
 procedure ResetParser;
 begin
   SetLength(datacells, TAPE_INITSIZE);  // every program starts with cell 'c0' defined
-  lastcell := TAPE_INITSIZE-1;
+  lastcell := 0;
   datacells[0] := 0;
   cellidx := 0;
 end;
