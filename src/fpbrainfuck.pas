@@ -36,13 +36,13 @@ type
   TBFOutput  = procedure(prompt : char);
 
 (* TOKENS *)
-type
+{ type
   TToken     = TBFCommand;
   TTokenEnum = (tokNext , tokPrev,
                 tokInc  , tokDec ,
                 tokOut  , tokIn  ,
                 tokBegin, tokEnd );
-  TArrToken  = array[TTokenEnum] of TToken;
+  TArrToken  = array[TTokenEnum] of TToken; }
 
 (* METHODS *)
 function  ExecuteBrainfuck(filename : string) : byte;
@@ -70,10 +70,6 @@ implementation
 uses crt, sysutils, fpbferr;
 
 const
-  TOK_ENUMERATORS : set of TTokenEnum = [tokNext , tokPrev,
-                                         tokInc  , tokDec ,
-                                         tokOut  , tokIn  ,
-                                         tokBegin, tokEnd ];
   TAPE_INITSIZE = 65535;  // MAX_WORD
 
 // acting like constant while the State Machine runs the code
@@ -303,6 +299,7 @@ begin
     else
       Seek(f, FilePos(f)-toklen+1);
   end;
+
   _TOTALBREAK:
   CloseFile(f);
   // __debug__('LoadBrainfuck terminated successfully.' + CRLF);

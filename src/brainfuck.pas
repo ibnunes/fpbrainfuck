@@ -4,10 +4,12 @@ uses
   sysutils,
   fpbrainfuck,  // interpreter - portable for other programs.
   fpbfarg,      // specific unit to manage parameters - not portable for other programs!
+  fpbftype,
+  fpbffucker,
   fpbferr;
 
 const
-  VERSION = '1.1.1';
+  VERSION = '1.2.0-alpha';
 
 (* Natively supported Brainfuck-like regular variants *)
 const
@@ -32,8 +34,9 @@ function Main(ps : TSetParam) : byte;
 {$DEFINE err__ := ;Exit; end}
 {$DEFINE __void__ := begin __err ERR_VOID err__ end}
 var
-  errcode : byte = ERR_SUCCESS;
-  fucker  : TFucker;
+  errcode   : byte = ERR_SUCCESS;
+  fucker    : TFucker;
+  newfucker : TArrToken;
 
 begin
   try
@@ -45,7 +48,15 @@ begin
       bfBrain : {default case, already loaded} ;
       bfMorse : SetBFCommands(MORSEFUCK);
       bfBit   : SetBFCommands(BITFUCK)  ;
-      bfOther : __void__;
+      bfOther :
+        begin
+          // __void__;
+          // NOT TESTED YET! It compiled, but I haven't tested this even once.
+          if ReadNewFuckers(ParamStr(2), newfucker) then
+            SetBFCommands(newfucker)
+          else
+            __err ERR_CONTROLLED err__  // TODO: new error type is needed
+        end;
     end;
     writeln('Using ', fucker, CRLF);
 

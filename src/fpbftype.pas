@@ -28,6 +28,19 @@ type
       function IsEmpty : boolean;
   end;
 
+  TToken     = TBFCommand;
+  TTokenEnum = (tokNext , tokPrev,
+                tokInc  , tokDec ,
+                tokOut  , tokIn  ,
+                tokBegin, tokEnd );
+  TArrToken  = array[TTokenEnum] of TToken;
+
+const
+  TOK_ENUMERATORS : set of TTokenEnum = [tokNext , tokPrev,
+                                         tokInc  , tokDec ,
+                                         tokOut  , tokIn  ,
+                                         tokBegin, tokEnd ];
+
 
 implementation
 uses
@@ -36,7 +49,7 @@ uses
 const
   INITSIZE = 65535;
 
-
+{$REGION TBFCode}
 function TBFCode.Token(i : longword) : TBFCommand;
 begin
   if i <= self.idx then
@@ -57,10 +70,9 @@ begin
     self.tokens[self.idx] := tok;
   end;
 end;
+{$ENDREGION}
 
-
-
-
+{$REGION TStackOfWord}
 function TStackOfWord.Pop : word;
 begin
   Pop := self.Peek;
@@ -90,5 +102,6 @@ function TStackOfWord.IsEmpty : boolean;
 begin
   IsEmpty := self.idx = 0;
 end;
+{$ENDREGION}
 
 end.
