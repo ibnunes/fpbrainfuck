@@ -46,8 +46,6 @@ end;
 
 procedure TBFCode.Append(tok : TBFCommand);
 begin
-  writeln(ErrOutput, '      TBFCode.Append(', tok, '):');
-  writeln(ErrOutput, '         BEGIN {', 'idx=', self.idx, '; Length(tokens)=', length(self.tokens), '}');
   if Length(self.tokens) = 0 then begin
     self.idx := 0;
     SetLength(self.tokens, INITSIZE);
@@ -58,7 +56,6 @@ begin
     Inc(self.idx);
     self.tokens[self.idx] := tok;
   end;
-  writeln(ErrOutput, '           END {', 'idx=', self.idx, '; Length(tokens)=', length(self.tokens), '}');
 end;
 
 
@@ -67,7 +64,6 @@ end;
 function TStackOfWord.Pop : word;
 begin
   Pop := self.Peek;
-  { self.data[idx] := 0; }  // not exactly necessary
   Dec(self.idx);
 end;
 
