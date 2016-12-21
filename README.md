@@ -6,3 +6,5 @@ For a complete definition of "Brainfuck" and "regular variants", refer to the do
 
 For a complete OOP approach, please refer to my friend's repository, Nuno Picado, available at:
   https://github.com/nunopicado/BrainFuckParser
+
+This interpreter fully supports **Morsefuck** (http://esolangs.org/wiki/Morsefuck) and **Bitfuck**.
