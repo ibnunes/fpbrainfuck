@@ -1,24 +1,11 @@
 (*
 ===== fpbrainfuck =====
 Unit for Free Pascal and compatible Extended Pascal, Object Pascal and Delphi compilers.
-
 Licensed under the GNU-GPL 3.0.
-
-Author:         Igor Nunes, a.k.a. thoga31
-Versions:
-  Stable:       2.1.0-candidate
-  In progress:  2.1.0-final
-Date:           December 21, 2016
-
-=== General information ===
-
-This unit provides an interpreter for Brainfuck and regular variants.
-It uses only the procedural paradigm, in spite of using the mode objfpc for some particularly useful features.
-
-For a complete definition of "Brainfuck" and "regular variants", refer to the documentation.
-
-For a complete OOP approach, please refer to my friend's repository, Nuno Picado, available at:
-  https://github.com/nunopicado/BrainFuckParser
+Author:                   Igor Nunes, a.k.a. thoga31
+Versions:   Stable:       2.1.0-final
+            In progress:  2.2.0 (?)
+Date:                     December 26, 2016
 *)
 
 unit fpbrainfuck;
@@ -28,21 +15,13 @@ interface
 uses fpbftype;
 
 const
-  version : string = '2.1.0-candidate';
+  version : string = '2.1.0';
   CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
 
 type
   TBFInput   = function : char;
   TBFOutput  = procedure(prompt : char);
 
-(* TOKENS *)
-{ type
-  TToken     = TBFCommand;
-  TTokenEnum = (tokNext , tokPrev,
-                tokInc  , tokDec ,
-                tokOut  , tokIn  ,
-                tokBegin, tokEnd );
-  TArrToken  = array[TTokenEnum] of TToken; }
 
 (* METHODS *)
 function  ExecuteBrainfuck(filename : string) : byte;
@@ -53,11 +32,11 @@ procedure DefIOBrainfuck(inmethod : TBFInput); overload;
 procedure DefIOBrainfuck(outmethod : TBFOutput); overload;
 procedure ResetToBrainfuck;
 
-function  SetBFCommands(nextcell, previouscell,
-                        incrementcell, decrementcell,
-                        outcell, incell,
-                        initcycle, endcycle : TBFCommand) : byte;
-function  SetBFCommands(tokens : TArrToken) : byte; overload;
+function  SetBFOperators(nextcell     , previouscell ,
+                         incrementcell, decrementcell,
+                         outcell      , incell       ,
+                         initcycle    , endcycle     : TToken) : byte;
+function  SetBFOperators(tokens : TArrToken) : byte; overload;
 
 (* ==================== DEBUG MODE ==================== *)
   procedure BF_SwitchDebugMode;
@@ -74,13 +53,12 @@ const
 
 // acting like constant while the State Machine runs the code
 var
-  TOK_COMMANDS : TArrToken;
+  tokOpers : TArrToken;
 
 (* CELLS *)
 type
   TBFCell    = byte;
   TBFArrCell = array of TBFCell;
-  TBFCycle   = TBFCode;  // cycles are arrays of TBFCommand
   TBFIO = record
     Input  : TBFInput;
     Output : TBFOutput;
@@ -101,25 +79,20 @@ var
     debugmode        : boolean;  // [flag] Debug Mode Switch
   end;
 
-(* ==================== DEBUG MODE ==================== *)
-  procedure __debug__(msg : string);
-  begin
-    if flag.debugmode then write(ErrOutput, msg);
-  end;
-(* ==================== DEBUG MODE ==================== *)
 
 (* IMPLEMENTATION *)
-function IsBFCommand(c : TBFCommand) : boolean;
-var
-  t : TToken;
+{$i debug.pas}
+
+function GetToken(c : TToken; var tok : TTokenEnum) : boolean;
 begin
-  IsBFCommand := false;
-  for t in TOK_COMMANDS do
-    if t = c then begin
-      IsBFCommand := true;
+  GetToken := false;
+  for tok in tokEnum do
+    if tokOpers[tok] = c then begin
+      GetToken := true;
       break;
     end;
 end;
+
 
 {$REGION Cell Management}
 function CountCells : longword;
@@ -167,12 +140,12 @@ end;
 {$ENDREGION}
 
 {$REGION Tokenizer}
-function Tokenizer(oper : TBFCommand) : TTokenEnum;
+function Tokenizer(oper : TToken) : TTokenEnum;
 var tok : TTokenEnum;
 begin
   // Tokenizer := tokNone;
-  for tok in TOK_ENUMERATORS do
-    if TOK_COMMANDS[tok] = oper then begin
+  for tok in TOKENUM do
+    if tokOpers[tok] = oper then begin
       Tokenizer := tok;
       break;
     end;
@@ -180,7 +153,7 @@ end;
 {$ENDREGION}
 
 {$REGION Brainfuck interpreter}
-procedure ProcessBrainfuck(ch : TBFCommand);
+procedure ProcessBrainfuck(tok : TTokenEnum);
 (* Main procedure of all! This is the brain of the interpreter. *)
 
   function IncR(var n : longword) : longword;
@@ -191,7 +164,7 @@ procedure ProcessBrainfuck(ch : TBFCommand);
   end;
 
 begin
-  case Tokenizer(ch) of
+  case tok of
     tokIn   : InputCell(sm.cellidx);
     tokOut  : OutputCell(sm.cellidx);
     tokInc  : IncCell(sm.cellidx);
@@ -204,7 +177,7 @@ begin
 end;
 
 {$MACRO on}
-procedure ParseBrainfuck(thecode : TBFCycle); overload;
+procedure ParseBrainfuck(thecode : TBFCode); overload;
 var
   i : longword;
   cycles : TStackOfWord;
@@ -215,31 +188,30 @@ var
   (* Just to make the code more easy for the eyes. *)
   begin
     cycle_count := 1;
-    while (cmd <> TOK_COMMANDS[tokEnd]) or (cycle_count > 0) do begin
+    while (cmd <> tokEnd) or (cycle_count > 0) do begin
       Inc(i);
-      if cmd = TOK_COMMANDS[tokBegin] then
-        Inc(cycle_count)
-      else if cmd = TOK_COMMANDS[tokEnd] then
-        Dec(cycle_count);
+      case cmd of
+        tokBegin : Inc(cycle_count);
+        tokEnd   : Dec(cycle_count);
+      end;
     end;
   end;
 
 begin
   i := 0;
   while i < thecode.Count do begin
-    if cmd = TOK_COMMANDS[tokBegin] then begin
-      if GetCell(sm.cellidx) = 0 then
-        SeekEndOfCycle
-      else
-        cycles.Push(i);
-    end
-    else if cmd = TOK_COMMANDS[tokEnd] then begin
-      if GetCell(sm.cellidx) = 0 then
-        cycles.Pop
-      else
-        i := cycles.Peek;
-    end else
+    case cmd of
+      tokBegin : if GetCell(sm.cellidx) = 0 then
+                   SeekEndOfCycle
+                 else
+                   cycles.Push(i);
+      tokEnd   : if GetCell(sm.cellidx) = 0 then
+                   cycles.Pop
+                 else
+                   i := cycles.Peek;
+    else
       ProcessBrainfuck(cmd);
+    end;
 
     Inc(i);
   end;
@@ -248,24 +220,14 @@ end;
 {$ENDREGION}
 
 {$REGION Brainfuck source code management}
-function LoadBrainfuck(filename : string; var thecode : TBFCycle) : byte;
+function LoadBrainfuck(filename : string; var thecode : TBFCode) : byte;
 var
-  f  : file of char;
-  ch : char;
-  t  : TBFCommand;
-  i  : byte;
+  f   : file of char;
+  ch  : char;
+  t   : TToken;
+  tok : TTokenEnum;
+  i   : byte;
 label _TOTALBREAK;
-
-  (* ==================== DEBUG MODE ==================== *)
-  // Not in use at the current version
-  { procedure DebugCommands(const CODE : TBFCycle);
-    var j : longword;
-    begin
-      writeln(ErrOutput, 'DEBUG COMMANDS:');
-      for j := 0 to CODE.Count do
-        writeln(ErrOutput, 'cmd', j:3, ' = "', CODE.Token(j),'"');
-    end; }
-  (* ==================== DEBUG MODE ==================== *)
 
 begin
   if not flag.aretokensregular then
@@ -293,9 +255,9 @@ begin
         goto _TOTALBREAK;
       end;
     end;
-    if IsBFCommand(t) then
+    if GetToken(t, tok) then
       // __debug__('  >>> Appending token «' + t + '»' + CRLF);
-      thecode.Append(t)
+      thecode.Append(tok)
     else
       Seek(f, FilePos(f)-toklen+1);
   end;
@@ -314,19 +276,8 @@ begin
 end;
 
 
-(* ==================== DEBUG MODE ==================== *)
-  procedure DebugCells;
-  var
-    i : longword;
-  begin
-    writeln(ErrOutput, CRLF, 'DEBUG CELLS [', sm.lastcell, ']:');
-    for i := Low(sm.datacells) to sm.lastcell do
-      writeln(ErrOutput, 'c', i:5, ' = ', sm.datacells[i]:3);
-  end;
-(* ==================== DEBUG MODE ==================== *)
-
 function ExecuteBrainfuck(filename : string) : byte;
-var thecode : TBFCycle;
+var thecode : TBFCode;
 begin
   ExecuteBrainfuck := LoadBrainfuck(filename, thecode);
   if ExecuteBrainfuck <> ERR_SUCCESS then
@@ -386,37 +337,37 @@ begin
   sm.cellidx := 0;
 end;
 
-function SetBFCommands(nextcell, previouscell,
-                       incrementcell, decrementcell,
-                       outcell, incell,
-                       initcycle, endcycle : TBFCommand) : byte;
+function SetBFOperators(nextcell     , previouscell ,
+                        incrementcell, decrementcell,
+                        outcell      , incell       ,
+                        initcycle    , endcycle     : TToken) : byte;
 var
   i : TToken;
 begin
-  TOK_COMMANDS[tokNext]  := nextcell;
-  TOK_COMMANDS[tokPrev]  := previouscell;
-  TOK_COMMANDS[tokInc]   := incrementcell;
-  TOK_COMMANDS[tokDec]   := decrementcell;
-  TOK_COMMANDS[tokOut]   := outcell;
-  TOK_COMMANDS[tokIn]    := incell;
-  TOK_COMMANDS[tokBegin] := initcycle;
-  TOK_COMMANDS[tokEnd]   := endcycle;
+  tokOpers[tokNext]  := nextcell;
+  tokOpers[tokPrev]  := previouscell;
+  tokOpers[tokInc]   := incrementcell;
+  tokOpers[tokDec]   := decrementcell;
+  tokOpers[tokOut]   := outcell;
+  tokOpers[tokIn]    := incell;
+  tokOpers[tokBegin] := initcycle;
+  tokOpers[tokEnd]   := endcycle;
 
-  SetBFCommands := 0;
-  toklen := Length(TOK_COMMANDS[tokNext]);
-  for i in TOK_COMMANDS do
+  SetBFOperators := 0;
+  toklen := Length(tokOpers[tokNext]);
+  for i in tokOpers do
     if Length(i) <> toklen then
-      Inc(SetBFCommands);
-  flag.aretokensregular := SetBFCommands = 0;
+      Inc(SetBFOperators);
+  flag.aretokensregular := SetBFOperators = 0;
 end;
 
-function SetBFCommands(tokens : TArrToken) : byte; overload;
+function SetBFOperators(tokens : TArrToken) : byte; overload;
 begin
-  SetBFCommands :=
-    SetBFCommands(tokens[tokNext] , tokens[tokPrev],
-                  tokens[tokInc]  , tokens[tokDec] ,
-                  tokens[tokOut]  , tokens[tokIn]  ,
-                  tokens[tokBegin], tokens[tokEnd] );
+  SetBFOperators :=
+    SetBFOperators(tokens[tokNext] , tokens[tokPrev],
+                   tokens[tokInc]  , tokens[tokDec] ,
+                   tokens[tokOut]  , tokens[tokIn]  ,
+                   tokens[tokBegin], tokens[tokEnd] );
 end;
 
 procedure ResetToBrainfuck;
@@ -424,20 +375,9 @@ const
   BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');
   // Original Brainfuck, as defined by Urban Müller, 1993
 begin
-  SetBFCommands(BF_COMMANDS);
+  SetBFOperators(BF_COMMANDS);
 end;
 
-(* ==================== DEBUG MODE ==================== *)
-  procedure BF_SwitchDebugMode;
-  begin
-    flag.debugmode := not flag.debugmode;
-  end;
-
-  function BF_DebugStatus : boolean;
-  begin
-    BF_DebugStatus := flag.debugmode;
-  end;
-(* ==================== DEBUG MODE ==================== *)
 
 
 initialization

@@ -5,15 +5,21 @@ unit fpbftype;
 interface
 
 type
-  TBFCommand = string;
+  TToken = string;
+  TTokenEnum = (tokNext , tokPrev,
+                tokInc  , tokDec ,
+                tokOut  , tokIn  ,
+                tokBegin, tokEnd );
+  TArrToken  = array[TTokenEnum] of TToken;
+
   TBFCode    = record
     private
-      tokens : array of TBFCommand;
+      tokens : array of TTokenEnum;
       idx : longword;
     public
       property Count : longword read idx;
-      function Token(i : longword) : TBFCommand;
-      procedure Append(tok : TBFCommand);
+      function Token(i : longword) : TTokenEnum;
+      procedure Append(tok : TTokenEnum);
   end;
 
   TStackOfWord = record
@@ -28,18 +34,12 @@ type
       function IsEmpty : boolean;
   end;
 
-  TToken     = TBFCommand;
-  TTokenEnum = (tokNext , tokPrev,
-                tokInc  , tokDec ,
-                tokOut  , tokIn  ,
-                tokBegin, tokEnd );
-  TArrToken  = array[TTokenEnum] of TToken;
 
 const
-  TOK_ENUMERATORS : set of TTokenEnum = [tokNext , tokPrev,
-                                         tokInc  , tokDec ,
-                                         tokOut  , tokIn  ,
-                                         tokBegin, tokEnd ];
+  TOKENUM : set of TTokenEnum = [tokNext , tokPrev,
+                                 tokInc  , tokDec ,
+                                 tokOut  , tokIn  ,
+                                 tokBegin, tokEnd ];
 
 
 implementation
@@ -50,14 +50,14 @@ const
   INITSIZE = 65535;
 
 {$REGION TBFCode}
-function TBFCode.Token(i : longword) : TBFCommand;
+function TBFCode.Token(i : longword) : TTokenEnum;
 begin
   if i <= self.idx then
     Token := self.tokens[i];
   // else raise exception?
 end;
 
-procedure TBFCode.Append(tok : TBFCommand);
+procedure TBFCode.Append(tok : TTokenEnum);
 begin
   if Length(self.tokens) = 0 then begin
     self.idx := 0;

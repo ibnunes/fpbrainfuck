@@ -1,4 +1,5 @@
 {$MODE objfpc}
+// under construction
 unit fpbffucker;
 
 interface
@@ -24,7 +25,7 @@ begin
   try
     Reset(f);
     try
-      for tok in TOK_ENUMERATORS do begin
+      for tok in TOKENUM do begin
         readln(f, op);
         newfucker[tok] := op;
       end;
@@ -44,7 +45,7 @@ begin
   ReadNewFuckers := FileExists(fname);
   if ReadNewFuckers then begin
     Assign(f, fname);
-    ReadNewFuckers := ReadNewFuckers(f, newfucker);
+    ReadNewFuckers := ReadNewFuckers(TFileFucker(f), newfucker);
   end;
 end;
 
