@@ -139,19 +139,6 @@ begin
 end;
 {$ENDREGION}
 
-{$REGION Tokenizer}
-function Tokenizer(oper : TToken) : TTokenEnum;
-var tok : TTokenEnum;
-begin
-  // Tokenizer := tokNone;
-  for tok in TOKENUM do
-    if tokOpers[tok] = oper then begin
-      Tokenizer := tok;
-      break;
-    end;
-end;
-{$ENDREGION}
-
 {$REGION Brainfuck interpreter}
 procedure ProcessBrainfuck(tok : TTokenEnum);
 (* Main procedure of all! This is the brain of the interpreter. *)
