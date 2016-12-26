@@ -8,3 +8,8 @@ For a complete OOP approach, please refer to my friend's repository, Nuno Picado
   https://github.com/nunopicado/BrainFuckParser
 
 This interpreter fully supports **Morsefuck** (http://esolangs.org/wiki/Morsefuck) and **Bitfuck**.
+
+
+**How to compile**
+
+Run *fpc brainfuck* using Free Pascal 3.0.0. All units will be compiled automatically.
