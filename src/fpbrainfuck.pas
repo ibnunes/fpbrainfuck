@@ -3,9 +3,9 @@
 Unit for Free Pascal and compatible Extended Pascal, Object Pascal and Delphi compilers.
 Licensed under the GNU-GPL 3.0.
 Author:                   Igor Nunes, a.k.a. thoga31
-Versions:   Stable:       2.1.0-final
+Versions:   Stable:       2.1.1
             In progress:  2.2.0 (?)
-Date:                     December 26, 2016
+Date:                     December 27, 2016
 *)
 
 unit fpbrainfuck;
@@ -297,7 +297,10 @@ end;
 
 procedure DefaultOutput(ch : char);
 begin
-  write(ch);
+  if ch = #13 then
+    Flush(Output)
+  else
+    write(Output, ch);
 end;
 
 procedure DefIOBrainfuck(inmethod : TBFInput; outmethod : TBFOutput);
