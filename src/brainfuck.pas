@@ -41,7 +41,6 @@ var
   errcode   : byte = ERR_SUCCESS;
   fucker    : TFucker;
   newfucker : TArrToken;
-  _defaultflushfunc : CodePointer;
 
 begin
   try
@@ -71,16 +70,10 @@ begin
     writeln('Using ', fucker, CRLF);
 
     if HasDebugMode(ps) then
-      BF_SwitchDebugMode;
-
-    _defaultflushfunc := Textrec(Output).FlushFunc;   // Saves the default FlushFunc for later
-    Textrec(Output).FlushFunc := nil;                 // And now disables it
+      BF_SwitchDebugMode;                // And now disables it
 
     TextColor(COLOR_REGULAR);
     errcode := ExecuteBrainfuck(ParamStr(ParamCount));
-
-    Flush(Output);                                    // Empties stdout if it still has content
-    Textrec(Output).FlushFunc := _defaultflushfunc;   // Back to default FlushFunc
 
     if errcode <> ERR_SUCCESS then begin
       Main := errcode;

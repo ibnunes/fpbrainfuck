@@ -15,7 +15,7 @@ interface
 uses fpbftype;
 
 const
-  version : string = '2.1.0';
+  version : string = '2.1.1';
   CRLF = {$IFDEF windows} #13 + {$ENDIF} #10;
 
 type
@@ -270,7 +270,7 @@ begin
   if ExecuteBrainfuck <> ERR_SUCCESS then
     Exit;
 
-  ParseBrainfuck(thecode);
+  ExecuteBrainfuck := ExecuteBrainfuck(thecode);
 
   if flag.debugmode then DebugCells;  (* === DEBUG MODE === *)
 
@@ -278,7 +278,11 @@ begin
 end;
 
 function ExecuteBrainfuck(thecode : TBFCode) : byte; overload;
+var _defaultflushfunc : CodePointer;
 begin
+  _defaultflushfunc := Textrec(Output).FlushFunc;   // Saves the default FlushFunc for later
+  Textrec(Output).FlushFunc := nil;                 // And now disables it
+
   if flag.aretokensregular then begin
     ParseBrainfuck(thecode);
     ExecuteBrainfuck := ERR_SUCCESS;
@@ -286,6 +290,9 @@ begin
     ExecuteBrainfuck := ERR_TOKSIZE;
 
   if flag.debugmode then DebugCells;  (* === DEBUG MODE === *)
+
+  Flush(Output);                                    // Empties stdout if it still has content
+  Textrec(Output).FlushFunc := _defaultflushfunc;   // Back to default FlushFunc
 end;
 {$ENDREGION}
 
@@ -297,7 +304,7 @@ end;
 
 procedure DefaultOutput(ch : char);
 begin
-  if ch = #13 then
+  if ch = #10 then
     Flush(Output)
   else
     write(Output, ch);
