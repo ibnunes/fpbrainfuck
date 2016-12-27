@@ -118,6 +118,11 @@ begin
   Dec(sm.datacells[idx]);
 end;
 
+procedure ZeroCell(idx : longword);
+begin
+  sm.datacells[idx] := 0;
+end;
+
 function GetCell(idx : longword) : TBFCell;
 begin
   GetCell := sm.datacells[idx];
@@ -156,6 +161,7 @@ begin
     tokOut  : OutputCell(sm.cellidx);
     tokInc  : IncCell(sm.cellidx);
     tokDec  : DecCell(sm.cellidx);
+    tokZero : ZeroCell(sm.cellidx);
     tokNext : if CountCells-1 < IncR(sm.cellidx) then
                 CreateCell;
     tokPrev : if sm.cellidx > 0 then
@@ -256,6 +262,31 @@ begin
   // if debugmode then DebugCommands(thecode);   (* === DEBUG MODE === *)
 end;
 
+
+function SimplifyBrainfuck(code : TBFCode) : TBFCode;
+{$MACRO on}
+{$DEFINE result := SimplifyBrainfuck}
+var
+  i : longword = 0;
+
+begin
+  while (i < code.Count) do begin
+    if (i+2 <= code.Count) and
+       ([code.Token(i), code.Token(i+1), code.Token(i+2)] = [tokBegin, tokDec, tokEnd]) and
+       ([code.Token(i), code.Token(i+1), code.Token(i+2)] = [tokBegin, tokInc, tokEnd]) then
+    begin
+      result.Append(tokZero);
+      Inc(i, 2);
+    end
+    else
+      result.Append(code.Token(i));
+
+    Inc(i);
+  end;
+end;
+{$MACRO off}
+
+
 procedure ResetParser; forward;
 procedure FreeBrainfuck;
 begin
@@ -284,6 +315,7 @@ begin
   Textrec(Output).FlushFunc := nil;                 // And now disables it
 
   if flag.aretokensregular then begin
+    thecode := SimplifyBrainfuck(thecode);
     ParseBrainfuck(thecode);
     ExecuteBrainfuck := ERR_SUCCESS;
   end else
@@ -339,7 +371,7 @@ function SetBFOperators(nextcell     , previouscell ,
                         outcell      , incell       ,
                         initcycle    , endcycle     : TToken) : byte;
 var
-  i : TToken;
+  i : TTokenEnum;
 begin
   tokOpers[tokNext]  := nextcell;
   tokOpers[tokPrev]  := previouscell;
@@ -349,11 +381,12 @@ begin
   tokOpers[tokIn]    := incell;
   tokOpers[tokBegin] := initcycle;
   tokOpers[tokEnd]   := endcycle;
+  tokOpers[tokZero]  := ''; // initcycle + decrementcell + endcycle;
 
   SetBFOperators := 0;
   toklen := Length(tokOpers[tokNext]);
-  for i in tokOpers do
-    if Length(i) <> toklen then
+  for i := tokNext to tokEnd do
+    if (Length(tokOpers[i]) <> toklen) then
       Inc(SetBFOperators);
   flag.aretokensregular := SetBFOperators = 0;
 end;
@@ -369,7 +402,7 @@ end;
 
 procedure ResetToBrainfuck;
 const
-  BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']');
+  BF_COMMANDS : TArrToken = ('>', '<', '+', '-', '.', ',', '[', ']', ' ');
   // Original Brainfuck, as defined by Urban Müller, 1993
 begin
   SetBFOperators(BF_COMMANDS);

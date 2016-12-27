@@ -14,9 +14,9 @@ const
 
 (* Natively supported Brainfuck-like regular variants *)
 const
-  //          BRAINFUCK =    >      <      +      -      .      ,      [      ]      // As defined by Urban Müller, 1993
-  MORSEFUCK : TArrToken = ('.--', '--.', '..-', '-..', '-.-', '.-.', '---', '...');  // As defined by Igor Nunes, 2016
-  BITFUCK   : TArrToken = ('001', '000', '010', '011', '100', '101', '110', '111');  // As defined by Nuno Picado, 2016
+  //          BRAINFUCK =    >      <      +      -      .      ,      [      ]             // As defined by Urban Müller, 1993
+  MORSEFUCK : TArrToken = ('.--', '--.', '..-', '-..', '-.-', '.-.', '---', '...', '   ');  // As defined by Igor Nunes, 2016
+  BITFUCK   : TArrToken = ('001', '000', '010', '011', '100', '101', '110', '111', '   ');  // As defined by Nuno Picado, 2016
   COLOR_REGULAR =  7;
   COLOR_ERROR   = 12;
   COLOR_APP     = 15;
@@ -70,7 +70,7 @@ begin
     writeln('Using ', fucker, CRLF);
 
     if HasDebugMode(ps) then
-      BF_SwitchDebugMode;                // And now disables it
+      BF_SwitchDebugMode;
 
     TextColor(COLOR_REGULAR);
     errcode := ExecuteBrainfuck(ParamStr(ParamCount));

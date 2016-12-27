@@ -9,7 +9,8 @@ type
   TTokenEnum = (tokNext , tokPrev,
                 tokInc  , tokDec ,
                 tokOut  , tokIn  ,
-                tokBegin, tokEnd );
+                tokBegin, tokEnd ,
+                tokZero );
   TArrToken  = array[TTokenEnum] of TToken;
 
   TBFCode    = record
